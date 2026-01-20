@@ -1,0 +1,197 @@
+---
+title: "Class 3: Basics of Data Management"
+format: html
+author: Tammy Dang
+---
+
+```{r}
+#import libraries
+library(tidyverse)
+```
+
+```{r}
+#working directory
+getwd()
+```
+
+
+## Common Filetypes 
+Reading GA Enrollment
+
+```{r}
+# Medicare Advantage enrollment (Georgia)
+ga_enrollment <- read_csv("../data/output/ma-snippets/ga-enrollment/csv")
+
+# Medicare Advantage contracts (Georgia)
+ga_contract <- read_csv("../data/output/ma-snippets/ga-contract.csv")
+
+# Medicare Advantage service areas (Georgia)
+ga_service <- read_csv("../data/output/ma-snippets/ga-service-area.csv")
+```
+
+## First Checks After Loading
+- What type of object is it?
+- How many rows and columns?
+- What do the first few rows look like?
+
+```{r}
+# Basic info about ga_enrollment
+class(ga_enrollment)
+dim(ga_enrollment)
+nrow(ga_enrollment)
+ncol(ga_enrollment)
+
+# Peek at the data
+head(ga_enrollment)
+```
+
+## Structure and Summaries
+Check var names, types, and simple summaires
+GOAL: spot obvious problems early (wrong types, strange ranges, NA, outliers)
+### LOOK FOR:
+- Ranges and typical values
+    Are there negative ages, impossible years, or absurd enrollment counts?
+- Missingness
+    Are key variables mostly missing? Are there patterns (e.g., missing only in some years)?
+- Outliers
+    A few very large or very small values that might be data errors
+- Types
+    Are IDs/codes stored as strings? Are dates actually dates?
+
+```{r}
+# Structure
+glimpse(ga_enrollment)
+
+# Basic numeric summaries
+summary(ga_enrollment)
+```
+
+## Simple summaries and counts
+```{r}
+# How many plans per year?
+ga_enrollment %>%
+  count(year)
+
+# Average enrollment by year
+ga_enrollment %>%
+  group_by(year) %>%
+  summarise(
+    avg_enrollment = mean(enrollment, na.rm = TRUE),
+    n_plans        = n()
+  )
+```
+
+# Cleaning Data
+## Goals of Data management/cleaning
+Take raw files and turn them analysis ready datasets
+tasks:
+- select rows and columns you actually need
+- create and transform variables (logs, aggregates, indicators)
+- fix obvious issues (types, missing values, impossible values)
+- prepare data at right unit of observation for our analysis
+*WORKING THROUGH*: read -> inspect -> clean -> save
+
+### Selecting Var and Filtering rows
+drop uneeded columns and focus on samples you care abt
+Allows easier manipulation and merging later
+```{r}
+# Keep only key vars and a subset of years
+ga_enrollment_small <- ga_enrollment %>%
+  select(contractid, planid, county, enrollment) %>%
+  filter(!is.na(enrollment))
+```
+
+### Creating and transforming variables
+involves new var: indcators, logs, categories
+```{r}
+ga_enrollment_clean <- ga_enrollment_small %>%
+  mutate(
+    log_enrollment = log(enrollment)
+  )
+```
+
+### Handling missing and implausible values
+- drop rows where key variables are missing
+- recode impossible values
+```{r}
+ga_enrollment_checked <- ga_enrollment_clean %>%
+  mutate(
+    enrollment = if_else(enrollment < 0, NA_real_, enrollment)
+  ) %>%
+  filter(!is.na(enrollment), !is.na(contractid))
+```
+
+# Merging and Reshaping Data
+- left_join / how="left": keep all rows from the “main” table, match where possible
+Other options (for later):
+- inner_join / how="inner": only rows with matches in both tables
+- full_join / how="outer": keep everything; fill with missing where there’s no match
+- Always check row counts before and after merges and be careful with duplicated keys (many-to-many joins)
+```{r}
+# Merge enrollment with contract-level info
+ga_enroll_contract <- ga_enrollment %>%
+  left_join(
+    ga_contract,
+    by = c("contractid")
+  )
+
+# Add service area info
+ga_enroll_full <- ga_enroll_contract %>%
+  left_join(
+    ga_service,
+    by = c("contractid", "county")
+  )
+```
+
+## Stacking (Binding Multiple Datasets)
+- use bind_rows() when you have:
+    - same columns across files
+    - different time period or subsets
+- results in one longer dataset that's easier to work with
+
+```{r}
+years <- 2015:2018
+
+ga_enrollment_multi <- map_dfr(
+  years,
+  ~ read_csv(paste0("data/output/ma-snippets/ga-enrollment-", .x, ".csv")) %>%
+      mutate(year = .x)
+)
+```
+
+## Reshaping: WIDE VS LONG
+```{r}
+# Aggregate enrollment by contract and year
+ga_contract_year <- ga_enrollment %>%
+  group_by(contractid, year) %>%
+  summarise(
+    total_enrollment = sum(enrollment, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long → wide: years as columns
+ga_contract_wide <- ga_contract_year %>%
+  pivot_wider(
+    names_from = year,
+    values_from = total_enrollment,
+    names_prefix = "enroll_"
+  )
+
+# Wide → long: back to year/enrollment columns
+ga_contract_long <- ga_contract_wide %>%
+  pivot_longer(
+    cols = starts_with("enroll_"),
+    names_to = "year",
+    names_prefix = "enroll_",
+    values_to = "total_enrollment"
+  ) %>%
+  mutate(year = as.integer(year))
+```
+
+You might want wide data when:
+- Fitting models that expect one row per unit and many time-typed columns
+- Making certain tables or plots
+You want long data when:
+- Working with panel / time series methods (one row per unit–time)
+- Using most tidyverse/pandas tools, which like one observation per row
+- The key is to know your unit of observation and reshape accordingly

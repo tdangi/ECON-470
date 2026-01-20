@@ -3,7 +3,9 @@ title: "Homework 1 Submission 1"
 format: pdf
 author: Tammy Dang
 ---
+can use hint: BuildFinalData.R -- runs ALL individual codefiles to create giant medicare advantage dataset 
 
+FOR THIS ENROLLMENT: (only need to worry about plan enrollment data and service area data -- under enrollment and service-area in ma-data)
 
 ```{r}
 

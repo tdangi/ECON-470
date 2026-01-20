@@ -1,7 +1,7 @@
   # Month list --------------------------------------------------------------
   monthlist <- if (y == 2006) sprintf("%02d", 7:12) else sprintf("%02d", 1:12)
 
-  # Readers (quiet & typed) -------------------------------------------------
+  # Readers (quiet & typed) import dataset and being specific ---------------
   read_contract <- function(path) {
     read_csv(
       path,
