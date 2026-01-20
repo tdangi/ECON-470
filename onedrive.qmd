@@ -17,3 +17,15 @@ Always write with relative filepath names.
 
 .gitignore file -- .gitignore: hidden file in folder structure, where git won't track the file. It won't push any of those changes to github.
 
+loading required libraries
+```{r}
+library(devtools)
+library(Microsoft365R)
+
+```
+
+Try to get API access to OneDrive
+
+```{r}
+od <- Microsoft365R::get_personal_onedrive()
+```
