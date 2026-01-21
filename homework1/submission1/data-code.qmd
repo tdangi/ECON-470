@@ -3,10 +3,135 @@ title: "Homework 1 Submission 1"
 format: pdf
 author: Tammy Dang
 ---
+GitHub Setup: https://github.com/tdangi/ECON-470
+
 can use hint: BuildFinalData.R -- runs ALL individual codefiles to create giant medicare advantage dataset 
 
 FOR THIS ENROLLMENT: (only need to worry about plan enrollment data and service area data -- under enrollment and service-area in ma-data)
 
+```{r}
+#get working directory
+getwd()
+setwd('/Users/tammydang/Downloads/EMORY/ECON-470')
+```
+```{r}
+#import libraries
+library(tidyverse)
+
+#directory for locating data and data saving
+data.hcris <- file.path('data/hcris-data') 
+data.ma <-  file.path('data/ma-data')
+data.save <- file.path('data/hmwk_data')
+```
+
+# Building the Data
+GOAL: organize Monthly Plan Enrollment Data (1_plan-data.R) and Service Area files, focusing on 2018!
+
+## Read Monthly Plan Enrollment Data
+
+### functions
+```{r}
+#function to read enrollment data----------------------------------------
+ read_enroll <- function(path) {
+    read_csv(
+      path,
+      skip = 1,
+      col_names = c("contractid","planid","ssa","fips","state","county","enrollment"),
+      col_types = cols(
+        contractid = col_character(),
+        planid     = col_double(),
+        ssa        = col_double(),
+        fips       = col_double(),
+        state      = col_character(),
+        county     = col_character(),
+        enrollment = col_double()
+      ),
+      na = "*",
+      show_col_types = FALSE,
+      progress = FALSE
+    )
+  }
+
+#function to read contract data
+  read_contract <- function(path) {
+    read_csv(
+      path,
+      skip = 1,
+      col_names = c(
+        "contractid","planid","org_type","plan_type","partd","snp","eghp",
+        "org_name","org_marketing_name","plan_name","parent_org","contract_date"
+      ),
+      col_types = cols(
+        contractid = col_character(),
+        planid     = col_double(),
+        org_type   = col_character(),
+        plan_type  = col_character(),
+        partd      = col_character(),
+        snp        = col_character(),
+        eghp       = col_character(),
+        org_name   = col_character(),
+        org_marketing_name = col_character(),
+        plan_name  = col_character(),
+        parent_org = col_character(),
+        contract_date = col_character()
+      ),
+      show_col_types = FALSE,
+      progress = FALSE
+    )
+  }
+
+#load one month --------------------------------------------------
+ load_month <- function(m, y) {
+    c_path <- paste0("data/ma-data/ma-data/ma/enrollment/Extracted Data/CPSC_Contract_Info_", y, "_", m, ".csv")
+    e_path <- paste0("data/ma-data/ma-data/ma/enrollment/Extracted Data/CPSC_Enrollment_Info_", y, "_", m, ".csv")
+
+    contract.info <- read_contract(c_path) %>%
+      distinct(contractid, planid, .keep_all = TRUE)   
+
+    enroll.info <- read_enroll(e_path)
+
+    contract.info %>%
+      left_join(enroll.info, by = c("contractid","planid")) %>%
+      mutate(month = as.integer(m), year = y)
+  }
+
+ # Read all months, then tidy into a year-----------------------------
+ 
+ #load_year is for plan.year for the monthlist
+ y = 2018
+monthlist <- if (y == 2006) sprintf("%02d", 7:12) else sprintf("%02d", 1:12)
+
+# ALL MONTHS STACKED ON TOP OF EACH OTHER
+plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
+    arrange(contractid, planid, state, county, month) %>%
+    group_by(state, county) %>%
+    fill(fips, .direction = "downup") %>%                
+    ungroup() %>%
+    group_by(contractid, planid) %>%
+    fill(plan_type, partd, snp, eghp, plan_name, .direction = "downup") %>%
+    ungroup() %>%
+    group_by(contractid) %>%
+    fill(org_type, org_name, org_marketing_name, parent_org, .direction = "downup") %>%
+    ungroup()
+ 
+```
+
+- read_enroll = read raw enrollment data, defining each column/variable to create a dataset
+- load_month = load one month of the enrollment data
+
+```{r}
+#check read_enroll if it works
+read_enroll('data/ma-data/ma-data/ma/enrollment/CPSC_Enrollment_2018_01.zip')
+```
+
+
+```{r}
+#use plan.year to load the tibble
+str(plan.year)
+table(plan.year$month)
+```
+
+## Read Service Area Files
 ```{r}
 
 ```
