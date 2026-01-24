@@ -7,6 +7,7 @@ execute:
 ---
 
 ```{r}
+include = FALSE
 #load libraries
 library(tidyverse)
 
@@ -14,14 +15,16 @@ library(tidyverse)
 getwd()
 setwd('/Users/tammydang/Downloads/EMORY/ECON-470')
 ```
+
 # Question 1: 
 Provide a table of the count of plans under each plan type. Your table should look something like Table 1. (2 points)
-
 ```{r}
+include = FALSE
 #CODE CHUNK
 setwd('/Users/tammydang/Downloads/EMORY/ECON-470')
 # read enroll ------------------------------
-read_enroll <- function(path) {
+#function to read enrollment data----------------------------------------
+ read_enroll <- function(path) {
     read_csv(
       path,
       skip = 1,
@@ -103,7 +106,28 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
     fill(org_type, org_name, org_marketing_name, parent_org, .direction = "downup") %>%
     ungroup()
  
- # Read service area data -----------------------------------------
+ # Collapse to yearly panel ------------------------------------------------
+#final.plans <- plan.year %>%
+#  group_by(contractid, planid, fips, year) %>%
+#  arrange(month, .by_group = TRUE) %>%
+#  summarize(
+#    n_nonmiss        = sum(!is.na(enrollment)),
+#    avg_enrollment   = ifelse(n_nonmiss > 0, mean(enrollment, na.rm = TRUE), NA_real_),
+#    sd_enrollment    = ifelse(n_nonmiss > 1, sd(enrollment, na.rm = TRUE), NA_real_),
+#    min_enrollment   = ifelse(n_nonmiss > 0, min(enrollment, na.rm = TRUE), NA_real_),
+#    max_enrollment   = ifelse(n_nonmiss > 0, max(enrollment, na.rm = TRUE), NA_real_),
+#    first_enrollment = ifelse(n_nonmiss > 0, first(na.omit(enrollment)), NA_real_),
+#    last_enrollment  = ifelse(n_nonmiss > 0, last(na.omit(enrollment)), NA_real_),
+#    state            = last(state),
+#    county           = last(county),
+#    org_type         = last(org_type),
+#    plan_type        = last(plan_type),
+#    partd            = last(partd),
+#    snp              = last(snp),
+#    .groups = "drop"
+ # )
+
+# Read service area data -----------------------------------------
   read_service_area <- function(path) {
     read_csv(
       path, skip = 1,
@@ -154,9 +178,24 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
     fill(plan_type, partial, eghp, org_type, org_name, .direction = "downup") %>%
     ungroup()
 
-# MERGE DATASET ------------
+ final.service.area <- service.year %>%
+    group_by(contractid, fips, year) %>%
+    arrange(month, .by_group = TRUE) %>%
+    summarize(
+      state     = last(state),
+      county    = last(county),
+      org_name  = last(org_name),
+      org_type  = last(org_type),
+      plan_type = last(plan_type),
+      partial   = last(partial),
+      eghp      = last(eghp),
+      ssa       = last(ssa),
+      notes     = last(notes),
+      .groups = "drop"
+    )
 
 ```
+
 ```{r}
 table(plan.year$plan_type)
 ```
@@ -187,10 +226,6 @@ Now repeat the same filters from part 2 but also focus only on counties in which
 #        summarise(avg_enroll = mean(enrollment, na/rm=TRUE),
 #        n_plans = n()
 #                 )
-```
 
-
-```{r}
-#tinytex::uninstall_tinytex()
-#tinytex::install_tinytex()
+table(final.service.area$county)
 ```

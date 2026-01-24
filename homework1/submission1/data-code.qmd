@@ -115,32 +115,25 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
     ungroup()
  
  # Collapse to yearly panel ------------------------------------------------
-  final.plans <- plan.year %>%
-    group_by(contractid, planid, fips, year) %>%
-    arrange(month, .by_group = TRUE) %>%
-    summarize(
-      n_nonmiss        = sum(!is.na(enrollment)),
-      avg_enrollment   = ifelse(n_nonmiss > 0, mean(enrollment, na.rm = TRUE), NA_real_),
-      sd_enrollment    = ifelse(n_nonmiss > 1, sd(enrollment, na.rm = TRUE), NA_real_),
-      min_enrollment   = ifelse(n_nonmiss > 0, min(enrollment, na.rm = TRUE), NA_real_),
-      max_enrollment   = ifelse(n_nonmiss > 0, max(enrollment, na.rm = TRUE), NA_real_),
-      first_enrollment = ifelse(n_nonmiss > 0, first(na.omit(enrollment)), NA_real_),
-      last_enrollment  = ifelse(n_nonmiss > 0,  last(na.omit(enrollment)), NA_real_),
-      state            = last(state),
-      county           = last(county),
-      org_type         = last(org_type),
-      plan_type        = last(plan_type),
-      partd            = last(partd),
-      snp              = last(snp),
-      eghp             = last(eghp),
-      org_name         = last(org_name),
-      org_marketing_name = last(org_marketing_name),
-      plan_name        = last(plan_name),
-      parent_org       = last(parent_org),
-      contract_date    = last(contract_date),
-      year             = last(year),
-      .groups = "drop"
-    )
+final.plans <- plan.year %>%
+  group_by(contractid, planid, fips, year) %>%
+  arrange(month, .by_group = TRUE) %>%
+  summarize(
+    n_nonmiss        = sum(!is.na(enrollment)),
+    avg_enrollment   = ifelse(n_nonmiss > 0, mean(enrollment, na.rm = TRUE), NA_real_),
+    sd_enrollment    = ifelse(n_nonmiss > 1, sd(enrollment, na.rm = TRUE), NA_real_),
+    min_enrollment   = ifelse(n_nonmiss > 0, min(enrollment, na.rm = TRUE), NA_real_),
+    max_enrollment   = ifelse(n_nonmiss > 0, max(enrollment, na.rm = TRUE), NA_real_),
+    first_enrollment = ifelse(n_nonmiss > 0, first(na.omit(enrollment)), NA_real_),
+    last_enrollment  = ifelse(n_nonmiss > 0, last(na.omit(enrollment)), NA_real_),
+    state            = last(state),
+    county           = last(county),
+    org_type         = last(org_type),
+    plan_type        = last(plan_type),
+    partd            = last(partd),
+    snp              = last(snp),
+    .groups = "drop"
+  )
 
 ```
 
@@ -232,17 +225,16 @@ table(plan.year$month)
 
 ### Check Service Year 2018
 ```{r}
-service.year
-str(service.year)
+str(final.service.area)
 ```
 
 # Merge Service Data with Monthly Plan Enrollment Data
 Merge the service area data into the monthly enrollment data using an “inner merge” (i.e., take only those rows that match between the datasets).
 ```{r}
-service_merge <- final.service.area %>% inner_join(
-  final.plans,
-  by = c("contractid")
-)
+service_merge <- final.service.area %>%
+  inner_join(
+    final.plans,
+    by = c("contractid")
+  )
 
-service_merge
 ```
