@@ -1,28 +1,21 @@
 ---
-title: "Homework 1 Submission 1"
-format: pdf
-author: Tammy Dang
-execute:
-    echo: false
+jupyter:
+  kernelspec:
+    display_name: R
+    language: R
+    name: ir
 ---
 
-```{r}
-include = FALSE
-#load libraries
-library(tidyverse)
 
-#get working directory
-getwd()
-setwd('/Users/tammydang/Downloads/EMORY/ECON-470')
+```{r}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, stringr, readxl, data.table, gdata, scales, kableExtra)
 ```
 
-# Question 1: 
-Provide a table of the count of plans under each plan type. Your table should look something like Table 1. (2 points)
+# Load Data
 ```{r}
-include = FALSE
-#CODE CHUNK
 setwd('/Users/tammydang/Downloads/EMORY/ECON-470')
-# read enroll ------------------------------
+
 #function to read enrollment data----------------------------------------
  read_enroll <- function(path) {
     read_csv(
@@ -105,7 +98,7 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
     group_by(contractid) %>%
     fill(org_type, org_name, org_marketing_name, parent_org, .direction = "downup") %>%
     ungroup()
- 
+
  # Collapse to yearly panel ------------------------------------------------
 #final.plans <- plan.year %>%
 #  group_by(contractid, planid, fips, year) %>%
@@ -127,7 +120,7 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
 #    .groups = "drop"
  # )
 
-# Read service area data -----------------------------------------
+# read service data
   read_service_area <- function(path) {
     read_csv(
       path, skip = 1,
@@ -154,30 +147,6 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
     )
   }
 
- # One-month loader --------------------------------------------------------
-  load_month_sa <- function(m, y) {
-    path <- paste0("data/ma-data/ma-data/ma/service-area/Extracted Data/MA_Cnty_SA_",y, "_", m, ".csv")
-    
-    read_service_area(path) %>%
-      mutate(month = as.integer(m), year = y)
-  }
-
-  # Read all months, then tidy once ----------------------------------------
-  service.year <- map_dfr(monthlist, ~ load_month_sa(.x, y))
-
-  # Ensure stable order before fills
-  service.year <- service.year %>%
-    arrange(contractid, fips, state, county, month)
-
-  # Fill missing identifiers/labels
-  service.year <- service.year %>%
-    group_by(state, county) %>%
-    fill(fips, .direction = "downup") %>%
-    ungroup() %>%
-    group_by(contractid) %>%
-    fill(plan_type, partial, eghp, org_type, org_name, .direction = "downup") %>%
-    ungroup()
-
  final.service.area <- service.year %>%
     group_by(contractid, fips, year) %>%
     arrange(month, .by_group = TRUE) %>%
@@ -193,40 +162,47 @@ plan.year <- map_dfr(monthlist, ~ load_month(.x, y)) %>%
       notes     = last(notes),
       .groups = "drop"
     )
-
-
 ```
 
+# Question 1: 
+Provide a table of the count of plans under each plan type. Your table should look something like Table 1. (2 points)
 ```{r}
-table(plan.year$plan_type)
+options(knitr.kable.NA = 0)
+knitr::kable(plan.type.year1, 
+             col.names=c("Plan Type","Count"),
+             format.args=list(big.mark=","), booktabs = TRU)
 ```
 
 # Question 2:
 Remove all special needs plans (SNP), employer group plans (eghp), and all “800-series” plans. Provide an updated version of Table 1 after making these exclusions. (2 points)
 ```{r}
-plan.year_q2 <- plan.year %>% filter(
-                                !str_detect(
-                                    plan_type,
-                                    regex(
-                                        "SNP|Medicare-Medicaid|Employer|Union|18\\d{2}",
-                                        ignore_case = TRUE
-                                        )
-                                )
-)
-table(plan.year_q2$plan_type)
+#remove all special needs plans
+plan.type.year2 <- plan.data %>% 
+  filter(snp == "No" & eghp == "No" & (planid < 800 | planid >= 900)) %>% 
+  group_by(plan_type) %>% count() %>% arrange(-n)
 
+#updated table
+options(knitr.kable.NA = 0)
+knitr::kable(plan.type.year2, 
+             col.names=c("Plan Type","Count"),
+             format.args=list(big.mark=","), booktabs = TRUE)
 ```
 
 # Question 3:
 Now repeat the same filters from part 2 but also focus only on counties in which plans are approved as per the service area files. With these data, provide a table of the average enrollments for each plan type. (2 points)
 ```{r}
-# average enrollment by plan type (for each plan type)
+#combine the service area with enrolled files
+plan.type.enroll <- plan.data %>%
+  inner_join(service.data %>% 
+               select(contractid, fips, year), 
+             by=c("contractid", "fips", "year")) %>%
+  filter(snp == "No" & eghp == "No" & (planid < 800 | planid >= 900)) %>% 
+  group_by(plan_type) %>% summarize(n=n(), enollment=mean(avg_enrollment, na.rm=TRUE)) %>% arrange(-n)
 
-#service_thing %>% 
-#    group_by(plan_type) %>%
-#        summarise(avg_enroll = mean(enrollment, na/rm=TRUE),
-#        n_plans = n()
-#                 )
 
-table(final.service.area$county)
+# provide table
+options(knitr.kable.NA = 0)
+knitr::kable(plan.type.enroll, digits=0,
+             col.names=c("Plan Type","Count","Avg Enrollments"),
+             format.args=list(big.mark=","), booktabs = TRUE)
 ```
